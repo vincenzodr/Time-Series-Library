@@ -715,7 +715,7 @@ class UEAloader(Dataset):
 
 
 class GPVSLoader(Dataset):
-    def __init__(self, root_path, win_size, step=1, flag="train", data_path='GPVS_subset.csv', split_perc=0.8):
+    def __init__(self, root_path, win_size, step=1, flag="train", data_path='GPVS_dataset.csv', split_perc=0.8):
         self.flag = flag
         self.step = step
         self.win_size = win_size
