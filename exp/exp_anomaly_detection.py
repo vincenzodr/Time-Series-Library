@@ -1,6 +1,6 @@
 from data_provider.data_factory import data_provider
 from exp.exp_basic import Exp_Basic
-from utils.tools import EarlyStopping, adjust_learning_rate, adjustment
+from utils.tools import EarlyStopping, adjust_learning_rate, adjustment, cal_accuracy
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import accuracy_score
 import torch.multiprocessing
@@ -17,9 +17,9 @@ import numpy as np
 warnings.filterwarnings('ignore')
 
 
-class Exp_Anomaly_Detection(Exp_Basic):
+class Exp_Multiclass_Anomaly_Detection(Exp_Basic):
     def __init__(self, args):
-        super(Exp_Anomaly_Detection, self).__init__(args)
+        super(Exp_Multiclass_Anomaly_Detection, self).__init__(args)
 
     def _build_model(self):
         model = self.model_dict[self.args.model].Model(self.args).float()
@@ -37,22 +37,21 @@ class Exp_Anomaly_Detection(Exp_Basic):
         return model_optim
 
     def _select_criterion(self):
-        criterion = nn.MSELoss()
+        criterion = nn.CrossEntropyLoss()
         return criterion
 
     def vali(self, vali_data, vali_loader, criterion):
         total_loss = []
         self.model.eval()
         with torch.no_grad():
-            for i, (batch_x, _) in enumerate(vali_loader):
+            for i, (batch_x, batch_y) in enumerate(vali_loader):
                 batch_x = batch_x.float().to(self.device)
+                batch_y = batch_y.long().to(self.device)
 
-                outputs = self.model(batch_x, None, None, None)
+                outputs = self.model(batch_x)
 
-                f_dim = -1 if self.args.features == 'MS' else 0
-                outputs = outputs[:, :, f_dim:]
                 pred = outputs.detach().cpu()
-                true = batch_x.detach().cpu()
+                true = torch.flatten(batch_y, 0, 1).squeeze().detach().cpu()
 
                 loss = criterion(pred, true)
                 total_loss.append(loss)
@@ -88,12 +87,11 @@ class Exp_Anomaly_Detection(Exp_Basic):
                 model_optim.zero_grad()
 
                 batch_x = batch_x.float().to(self.device)
+                batch_y = batch_y.long().to(self.device)
 
-                outputs = self.model(batch_x, None, None, None)
+                outputs = self.model(batch_x)
 
-                f_dim = -1 if self.args.features == 'MS' else 0
-                outputs = outputs[:, :, f_dim:]
-                loss = criterion(outputs, batch_x)
+                loss = criterion(outputs, torch.flatten(batch_y, 0, 1).squeeze())
                 train_loss.append(loss.item())
 
                 if (i + 1) % 100 == 0:
@@ -127,80 +125,46 @@ class Exp_Anomaly_Detection(Exp_Basic):
 
     def test(self, setting, test=0):
         test_data, test_loader = self._get_data(flag='test')
-        train_data, train_loader = self._get_data(flag='train')
         if test:
             print('loading model')
             self.model.load_state_dict(torch.load(os.path.join('./checkpoints/' + setting, 'checkpoint.pth')))
 
-        attens_energy = []
+        preds = []
+        trues = []
         folder_path = './test_results/' + setting + '/'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
         self.model.eval()
-        self.anomaly_criterion = nn.MSELoss(reduce=False)
-
-        # (1) stastic on the train set
         with torch.no_grad():
-            for i, (batch_x, batch_y) in enumerate(train_loader):
+            for i, (batch_x, batch_y) in enumerate(test_loader):
                 batch_x = batch_x.float().to(self.device)
-                # reconstruction
-                outputs = self.model(batch_x, None, None, None)
-                # criterion
-                score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
-                score = score.detach().cpu().numpy()
-                attens_energy.append(score)
+                batch_y = batch_y.long().to(self.device)
 
-        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)
-        train_energy = np.array(attens_energy)
+                outputs = self.model(batch_x)
 
-        # (2) find the threshold
-        attens_energy = []
-        test_labels = []
-        for i, (batch_x, batch_y) in enumerate(test_loader):
-            batch_x = batch_x.float().to(self.device)
-            # reconstruction
-            outputs = self.model(batch_x, None, None, None)
-            # criterion
-            score = torch.mean(self.anomaly_criterion(batch_x, outputs), dim=-1)
-            score = score.detach().cpu().numpy()
-            attens_energy.append(score)
-            test_labels.append(batch_y)
+                preds.append(outputs.detach())
+                trues.append(torch.flatten(batch_y, 0, 1))
 
-        attens_energy = np.concatenate(attens_energy, axis=0).reshape(-1)
-        test_energy = np.array(attens_energy)
-        combined_energy = np.concatenate([train_energy, test_energy], axis=0)
-        threshold = np.percentile(combined_energy, 100 - self.args.anomaly_ratio)
-        print("Threshold :", threshold)
+        preds = torch.cat(preds, 0)
+        trues = torch.cat(trues, 0)
+        print('test shape:', preds.shape, trues.shape)
 
-        # (3) evaluation on the test set
-        pred = (test_energy > threshold).astype(int)
-        test_labels = np.concatenate(test_labels, axis=0).reshape(-1)
-        test_labels = np.array(test_labels)
-        gt = test_labels.astype(int)
+        probs = torch.nn.functional.softmax(preds)  # (total_samples, num_classes) est. prob. for each class and sample
+        predictions = torch.argmax(probs, dim=1).cpu().numpy()  # (total_samples,) int class index for each sample
+        trues = trues.flatten().cpu().numpy()
 
-        print("pred:   ", pred.shape)
-        print("gt:     ", gt.shape)
+        accuracy = cal_accuracy(predictions, trues)
 
-        # (4) detection adjustment
-        gt, pred = adjustment(gt, pred)
+        # result save
+        folder_path = './results/' + setting + '/'
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
 
-        pred = np.array(pred)
-        gt = np.array(gt)
-        print("pred: ", pred.shape)
-        print("gt:   ", gt.shape)
-
-        accuracy = accuracy_score(gt, pred)
-        precision, recall, f_score, support = precision_recall_fscore_support(gt, pred, average='binary')
-        print("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-            accuracy, precision,
-            recall, f_score))
-
-        f = open("result_anomaly_detection.txt", 'a')
+        print('accuracy:{}'.format(accuracy))
+        f = open("result_classification.txt", 'a')
         f.write(setting + "  \n")
-        f.write("Accuracy : {:0.4f}, Precision : {:0.4f}, Recall : {:0.4f}, F-score : {:0.4f} ".format(
-            accuracy, precision,
-            recall, f_score))
+        f.write('accuracy:{}'.format(accuracy))
         f.write('\n')
         f.write('\n')
         f.close()

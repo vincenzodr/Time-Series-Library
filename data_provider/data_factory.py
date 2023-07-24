@@ -40,11 +40,19 @@ def data_provider(args, flag):
     
     if args.task_name == 'anomaly_detection':
         drop_last = False
-        data_set = Data(
+        if args.data == 'GPVS':
+            data_set = Data(
+                root_path=args.root_path,
+                data_path=args.data_path,
+                win_size=args.seq_len,
+                flag=flag,
+            )
+        else:
+            data_set = Data(
             root_path=args.root_path,
             win_size=args.seq_len,
             flag=flag,
-        )
+            )
         print(flag, len(data_set))
         data_loader = DataLoader(
             data_set,

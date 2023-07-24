@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import TimesNet
+from models import TimesNet
 
 class Model(nn.Module):
 
@@ -9,12 +9,14 @@ class Model(nn.Module):
         super(Model, self).__init__()
         configs.task_name = 'anomaly_detection'
         self.timesnet = TimesNet.Model(configs)
+        self.flatten = nn.Flatten(0,1)
         self.fc1 = nn.Linear(configs.c_out, h1)
         self.fc2 = nn.Linear(h1, h2)
         self.output = nn.Linear(h2, num_classes)
 
     def forward(self, x):
-        x = self.timesnet(x)
+        x = self.timesnet(x, None, None, None)
+        x = self.flatten(x)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.output(x)
