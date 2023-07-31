@@ -754,7 +754,7 @@ class GPVSLoader(Dataset):
         print(len(self.all_IDs))
 
     def load_single(self, filepath, flag):
-        if flag = 'TRAIN':
+        if flag == 'TRAIN':
             all_df = pd.read_pickle(filepath)[:-10000]
         else:
             all_df = pd.read_pickle(filepath)[-10000:]
