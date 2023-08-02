@@ -782,10 +782,10 @@ class GPVSLoader(Dataset):
         return all_df, labels_df
 
     def load_single(self, filepath):
-        all_df = pd.read_pickle(filepath)
+        pkl_df = pd.read_pickle(filepath)
         
-        df = all_df.iloc[:,:-1]
-        labels = all_df.iloc[:,-1]
+        df = pkl_df.iloc[:,:-1]
+        labels = pkl_df.iloc[:,-1]
         labels = pd.Series(labels, dtype="category")
         self.class_names = labels.cat.categories
         labels_df = pd.DataFrame(labels.cat.codes,
