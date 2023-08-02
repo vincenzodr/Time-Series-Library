@@ -733,7 +733,7 @@ class GPVSLoader(Dataset):
 
     def __init__(self, root_path, file_list=None, limit_size=None, flag=None):
         self.root_path = root_path
-        self.all_df, self.labels_df = self.load_single(os.path.join(root_path, 'gpvs_converted.pkl'), flag)
+        self.all_df, self.labels_df = self.load_all(root_path, file_list=file_list, flag=flag)
         self.all_IDs = self.all_df.index.unique()  # all sample IDs (integer indices 0 ... num_samples-1)
 
         if limit_size is not None:
@@ -753,11 +753,37 @@ class GPVSLoader(Dataset):
         self.feature_df = normalizer.normalize(self.feature_df)
         print(len(self.all_IDs))
 
-    def load_single(self, filepath, flag):
-        if flag == 'TRAIN':
-            all_df = pd.read_pickle(filepath)[:-10000]
+    def load_all(self, root_path, file_list=None, flag=None):
+        """
+        Loads datasets from csv files contained in `root_path` into a dataframe, optionally choosing from `pattern`
+        Args:
+            root_path: directory containing all individual .csv files
+            file_list: optionally, provide a list of file paths within `root_path` to consider.
+                Otherwise, entire `root_path` contents will be used.
+        Returns:
+            all_df: a single (possibly concatenated) dataframe with all data corresponding to specified files
+            labels_df: dataframe containing label(s) for each sample
+        """
+        # Select paths for training and evaluation
+        if file_list is None:
+            data_paths = glob.glob(os.path.join(root_path, '*'))  # list of all paths
         else:
-            all_df = pd.read_pickle(filepath)[-10000:]
+            data_paths = [os.path.join(root_path, p) for p in file_list]
+        if len(data_paths) == 0:
+            raise Exception('No files found using: {}'.format(os.path.join(root_path, '*')))
+        if flag is not None:
+            data_paths = list(filter(lambda x: re.search(flag, x), data_paths))
+        input_paths = [p for p in data_paths if os.path.isfile(p) and p.endswith('.pkl')]
+        if len(input_paths) == 0:
+            raise Exception("No .ts files found using pattern: '{}'".format(pattern))
+
+        all_df, labels_df = self.load_single(input_paths[0])  # a single file contains dataset
+
+        return all_df, labels_df
+
+    def load_single(self, filepath):
+        all_df = pd.read_pickle(filepath)
+        
         df = all_df.iloc[:,:-1]
         labels = all_df.iloc[:,-1]
         labels = pd.Series(labels, dtype="category")
