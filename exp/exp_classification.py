@@ -10,6 +10,8 @@ import warnings
 import numpy as np
 import pdb
 
+import pandas as pd
+
 warnings.filterwarnings('ignore')
 
 
@@ -175,6 +177,8 @@ class Exp_Classification(Exp_Basic):
         predictions = torch.argmax(probs, dim=1).cpu().numpy()  # (total_samples,) int class index for each sample
         trues = trues.flatten().cpu().numpy()
         accuracy = cal_accuracy(predictions, trues)
+
+        pd.DataFrame([predictions, trues]).to_csv('test.csv')
 
         # result save
         folder_path = './results/' + setting + '/'
