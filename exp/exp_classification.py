@@ -22,8 +22,9 @@ class Exp_Classification(Exp_Basic):
     def _build_model(self):
         # model input depends on data
         train_data, train_loader = self._get_data(flag='TRAIN')
+        vali_data, vali_loader = self._get_data(flag='VALI')
         test_data, test_loader = self._get_data(flag='TEST')
-        self.args.seq_len = max(train_data.max_seq_len, test_data.max_seq_len)
+        self.args.seq_len = max(train_data.max_seq_len, vali_data.max_seq_len, test_data.max_seq_len)
         self.args.pred_len = 0
         self.args.enc_in = train_data.feature_df.shape[1]
         self.args.num_class = len(train_data.class_names)
@@ -79,7 +80,7 @@ class Exp_Classification(Exp_Basic):
 
     def train(self, setting):
         train_data, train_loader = self._get_data(flag='TRAIN')
-        vali_data, vali_loader = self._get_data(flag='TEST')
+        vali_data, vali_loader = self._get_data(flag='VALI')
         test_data, test_loader = self._get_data(flag='TEST')
 
         path = os.path.join(self.args.checkpoints, setting)
