@@ -2,6 +2,7 @@ from data_provider.data_loader import Dataset_ETT_hour, Dataset_ETT_minute, Data
     MSLSegLoader, SMAPSegLoader, SMDSegLoader, SWATSegLoader, UEAloader, GPVSLoader
 from data_provider.uea import collate_fn
 from torch.utils.data import DataLoader
+from utils.sampler import getSampler
 
 data_dict = {
     'ETTh1': Dataset_ETT_hour,
@@ -59,14 +60,25 @@ def data_provider(args, flag):
             flag=flag,
         )
 
-        data_loader = DataLoader(
-            data_set,
-            batch_size=batch_size,
-            shuffle=shuffle_flag,
-            num_workers=args.num_workers,
-            drop_last=drop_last,
-            collate_fn=lambda x: collate_fn(x, max_len=args.seq_len)
-        )
+        if (args.data == 'GPVS' and args.sampler == True and flag == 'TRAIN'):
+            sampler = getSampler(args.root_path, 'Fault_type')
+            data_loader = DataLoader(
+                data_set,
+                batch_size=batch_size,
+                sampler = sampler,
+                num_workers=args.num_workers,
+                drop_last=drop_last,
+                collate_fn=lambda x: collate_fn(x, max_len=args.seq_len)
+            )
+        else:
+            data_loader = DataLoader(
+                data_set,
+                batch_size=batch_size,
+                shuffle=shuffle_flag,
+                num_workers=args.num_workers,
+                drop_last=drop_last,
+                collate_fn=lambda x: collate_fn(x, max_len=args.seq_len)
+            )
         return data_set, data_loader
     else:
         if args.data == 'm4':
