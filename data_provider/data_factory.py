@@ -52,7 +52,6 @@ def data_provider(args, flag):
             shuffle=shuffle_flag,
             num_workers=args.num_workers,
             drop_last=drop_last)
-        print(countLabels(data_loader))
         return data_set, data_loader
     elif args.task_name == 'classification':
         drop_last = False
@@ -71,6 +70,7 @@ def data_provider(args, flag):
                 drop_last=drop_last,
                 collate_fn=lambda x: collate_fn(x, max_len=args.seq_len)
             )
+            print(countLabels(data_loader))
         else:
             data_loader = DataLoader(
                 data_set,
