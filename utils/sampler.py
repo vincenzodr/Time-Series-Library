@@ -24,8 +24,7 @@ def countLabels(dataloader):
     class_names = ['F0L', 'F0M', 'F1L', 'F1M', 'F2L', 'F2M', 'F3L', 'F3M', 'F4L', 'F4M', 'F5L', 'F5M', 'F6L', 'F6M', 'F7L', 'F7M']
     labels_count = {x: 0 for x in class_names}
 
-    for data in dataloader:
-        labels = data['label']
+    for _, labels, _ in dataloader:
         for idx in range(len(class_names)):
             labels_count[class_names[idx]] += torch.sum(labels == idx).item()
         
