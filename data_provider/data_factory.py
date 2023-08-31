@@ -2,7 +2,7 @@ from data_provider.data_loader import Dataset_ETT_hour, Dataset_ETT_minute, Data
     MSLSegLoader, SMAPSegLoader, SMDSegLoader, SWATSegLoader, UEAloader, GPVSLoader
 from data_provider.uea import collate_fn
 from torch.utils.data import DataLoader
-from utils.sampler import getSampler
+from utils.sampler import getSampler, countLabels
 
 data_dict = {
     'ETTh1': Dataset_ETT_hour,
@@ -52,6 +52,7 @@ def data_provider(args, flag):
             shuffle=shuffle_flag,
             num_workers=args.num_workers,
             drop_last=drop_last)
+        print(countLabels(data_loader))
         return data_set, data_loader
     elif args.task_name == 'classification':
         drop_last = False
