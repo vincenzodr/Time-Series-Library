@@ -24,6 +24,9 @@ def data_provider(args, flag):
     Data = data_dict[args.data]
     timeenc = 0 if args.embed != 'timeF' else 1
 
+    if (args.gan and flag.lower() == 'train'):
+        flag = 'GAN'
+
     if flag == 'test':
         shuffle_flag = False
         drop_last = True

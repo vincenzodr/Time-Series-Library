@@ -37,6 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoints', type=str, default='./checkpoints/', help='location of model checkpoints')
 
     parser.add_argument('--sampler', action='store_true', help='use weighted sampler')
+    parser.add_argument('--gan', action='store_true', help='use GAN generated samples')
     
     # forecasting task
     parser.add_argument('--seq_len', type=int, default=96, help='input sequence length')
