@@ -817,6 +817,8 @@ class GPVSLoader(Dataset):
 
         df = pd.concat((pd.DataFrame({col: df.loc[row, col] for col in df.columns}).reset_index(drop=True).set_index(
             pd.Series(lengths[row, 0] * [row])) for row in range(df.shape[0])), axis=0)
+        
+        df = df.astype('float32')
 
         # Replace NaN values
         grp = df.groupby(by=df.index)
